@@ -17,54 +17,35 @@ class LearningAgent(Agent):
         # TODO: Initialize any additional variables here
         self.q = {}
 
-        self.learningRate = 0.5
+        self.learningRate = 1.0
         self.epsilon = 1.0
-        self.discountFactor = 0.2
+        self.discountFactor = 0.3
         self.actions = [None, 'forward', 'left', 'right']
 
         self.trip = 0
-
+        self.minusReward = 0
 
     def reset(self, destination=None):
         self.planner.route_to(destination)
         # TODO: Prepare for a new trip; reset any variables here, if required
+
+        print "last minus reward : {} per {} trip".format(self.minusReward, self.trip)
+        
         self.epsilon = self.epsilon - 0.03
-        #self.learningRate = self.learningRate - 0.01
-        self.minusReward = 0
-        self.lastReward = 0
-        # print "self.epsilon is {}".format(self.epsilon)]
-        # print self.q 
+        #self.minusReward = 0
+        #self.trip = 0
+        
+        #print self.q
 
     def update(self, t):
         # Gather inputs
         self.next_waypoint = self.planner.next_waypoint()  # from route planner, also displayed by simulator
         inputs = self.env.sense(self)
         deadline = self.env.get_deadline(self)
+        
 
         # TODO: Update state
-
-        light = inputs['light']
-        oncoming = inputs['oncoming']
-        left = inputs['left']
-
-
-        if light == 'green' :
-            straight = True
-        else :
-            straight = False
-
-        if light =='green' and oncoming != 'forward':
-            left = True
-        else :
-            left = False
-
-
-        if light =='green' or (light == 'red' and (oncoming != 'left' or left == 'straight')) :
-            right = True
-        else :
-            right = False
-
-        self.state = (left,right,straight,self.lastReward)
+        self.state = (inputs['light'],inputs['oncoming'],inputs['left'], inputs['right'], self.next_waypoint)
 
         # TODO: Select action according to your policy
         s = ""
@@ -80,13 +61,6 @@ class LearningAgent(Agent):
                     qValueList.append(value)
                     actionList.append(a)
 
-            #Remove None action if there are other way to go
-            #if len(actionList) > 1 :
-#                idx = actionList.index(None)
-#                qValueList.remove(qValueList[idx])
-#                actionList.remove(None)
-                
-                
             maxQ = max(qValueList)
             best = []
             for i in range(len(actionList)) :
@@ -96,12 +70,13 @@ class LearningAgent(Agent):
 
         # Execute action and get reward
         reward = self.env.act(self, action)
-        self.lastReward = reward
 
-        if action != None :
-            reward = reward * 2
+        self.trip = self.trip + 1
         if reward < 0 :
             self.minusReward = self.minusReward + 1
+            #print "agent break traffic rule" + s
+            #print self.state
+            #print action
 
         # TODO: Learn policy based on state, action, reward
         oldValue = self.q.get((self.state, action),None) 
@@ -118,15 +93,15 @@ class LearningAgent(Agent):
 
 def run():
     """Run the agent for a finite number of trials."""
-    #os.chdir('/Users/paw/Documents/MyProject/MLND/P4/smartcab')
-    print os.getcwd()
+    #os.chdir('/Users/paw/Documents/MyProject/MLND/P4/smartcab/MLND-Course-Project-4-SmartCab')
+    #print os.getcwd()
     # Set up environment and agent
     e = Environment()  # create environment (also adds some dummy traffic)
     a = e.create_agent(LearningAgent)  # create agent
     e.set_primary_agent(a, enforce_deadline=True)  # set agent to track
 
     # Now simulate it
-    sim = Simulator(e, update_delay=0.5)  # reduce update_delay to speed up simulation
+    sim = Simulator(e, update_delay=0.25)  # reduce update_delay to speed up simulation
     sim.run(n_trials=100)  # press Esc or close pygame window to quit
 
 
